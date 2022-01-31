@@ -13,8 +13,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          ref: master
+        # with:
+        #   ref: master
       - name: Package
         run: |
           npm install
@@ -25,4 +25,4 @@ jobs:
           git config --global user.name "GitHub Actions"
           git add dist/
           git commit -m "chore: Update dist" || echo "No changes to commit"
-          git push origin HEAD:master
+          git push origin

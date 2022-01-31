@@ -92,8 +92,9 @@ async function run() {
         JSON.stringify(describeTaskResponse.taskDefinition)
     );
     let taskDef = describeTaskResponse.taskDefinition;
+    let tags = [];
     if (includeTags) {
-      const tags = describeTaskResponse.tags;
+      tags = describeTaskResponse.tags;
     }
     const findContDef = taskDef.containerDefinitions.findIndex(
       (x) => x.name === containerName

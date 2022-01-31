@@ -70,6 +70,7 @@ async function run() {
     const taskDefArn = serviceResponse.taskDefinition;
 
     core.debug("Downloading the task definition");
+    core.debug("Task definition arn: " + taskDefArn);
     let describeTaskResponse;
     try {
       describeTaskResponse = await ecs
@@ -86,9 +87,13 @@ async function run() {
       throw error;
     }
 
+    core.debug(
+      "Downloaded Task definition: " +
+        JSON.stringify(describeTaskResponse.taskDefinition)
+    );
     let taskDef = describeTaskResponse.taskDefinition;
     if (includeTags) {
-      tags = describeTaskResponse.tags;
+      const tags = describeTaskResponse.tags;
     }
     const findContDef = taskDef.containerDefinitions.findIndex(
       (x) => x.name === containerName
@@ -117,6 +122,7 @@ async function run() {
       newTaskDef.tags = tags;
     }
 
+    core.debug("Uploaded Task definition: " + JSON.stringify(newTaskDef));
     // Write out a new task definition file
     var updatedTaskDefFile = tmp.fileSync({
       tmpdir: process.env.RUNNER_TEMP,

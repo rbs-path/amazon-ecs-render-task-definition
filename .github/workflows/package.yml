@@ -9,16 +9,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        # with:
-        #   ref: master
+        with:
+          ref: master
+      - name: Node setup
+        uses: actions/setup-node@v4
+
       - name: Package
         run: |
-          npm install
           npm ci
+          npm test
           npm run package
       - name: Commit
         run: |
           git config --global user.name "GitHub Actions"
           git add dist/
-          git commit -m "chore: Update dist (${{ github.event.pull_request.title }})" || echo "No changes to commit"
-          git push origin
+          git commit -m "chore: Update dist" || echo "No changes to commit"
+          git push origin HEAD:master

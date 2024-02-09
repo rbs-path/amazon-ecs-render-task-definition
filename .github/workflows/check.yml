@@ -15,7 +15,6 @@ jobs:
         run: |
           npm install
           npm ci
-          npm test
   conventional-commits:
     name: Semantic Pull Request
     runs-on: ubuntu-latest

@@ -113,6 +113,27 @@ async function run() {
     taskDef.containerDefinitions.splice(findContDef, 1)
     taskDef.containerDefinitions.push(newContainerDefinition)
 
+    const ddVersion = core.getInput('dd-version', { required: false })
+    if (ddVersion) {
+      const ddAgentIndex = taskDef.containerDefinitions.findIndex(
+        (x) => x.name === 'datadog-agent'
+      )
+      if (ddAgentIndex !== -1) {
+        const ddAgent = taskDef.containerDefinitions[ddAgentIndex]
+        if (!ddAgent.environment) {
+          ddAgent.environment = []
+        }
+        const envIndex = ddAgent.environment.findIndex(
+          (e) => e.name === 'DD_VERSION'
+        )
+        if (envIndex !== -1) {
+          ddAgent.environment[envIndex].value = ddVersion
+        } else {
+          ddAgent.environment.push({ name: 'DD_VERSION', value: ddVersion })
+        }
+      }
+    }
+
     var newTaskDef = {
       containerDefinitions: taskDef.containerDefinitions,
       family: taskDef.family,

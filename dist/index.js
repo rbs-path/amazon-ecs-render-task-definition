@@ -61513,51 +61513,51 @@ var dist_cjs = __nccwpck_require__(212);
 
 
 function mergeContainerDefinition(defaults, patch) {
-  const { environment: envDefaults } = defaults;
-  const { environment: envPatch, ...patchRest } = patch;
+  const { environment: envDefaults } = defaults
+  const { environment: envPatch, ...patchRest } = patch
   const { acc: environment } = (envPatch || [])
     .concat(envDefaults || [])
     .reduce(
       ({ acc, seen }, e) => {
-        if (seen[e.name]) return { acc, seen };
-        seen[e.name] = 1;
-        acc.push(e);
-        return { acc, seen };
+        if (seen[e.name]) return { acc, seen }
+        seen[e.name] = 1
+        acc.push(e)
+        return { acc, seen }
       },
       { acc: [], seen: {} }
-    );
-  return { ...defaults, ...patchRest, environment };
+    )
+  return { ...defaults, ...patchRest, environment }
 }
 
 async function run() {
   try {
     const ecs = new dist_cjs/* ECSClient */.Zgc({
-      customUserAgent: "amazon-ecs-render-task-definition-for-github-actions",
-    });
+      customUserAgent: 'amazon-ecs-render-task-definition-for-github-actions',
+    })
 
     // Get inputs
-    const taskDefinitionFile = getInput("task-definition-patch", {
+    const taskDefinitionFile = getInput('task-definition-patch', {
       required: true,
-    });
-    const service = getInput("service", { required: true });
-    const clusterName = getInput("cluster", { required: true });
-    const containerName = getInput("container-name", { required: true });
-    const image = getInput("image", { required: true });
+    })
+    const service = getInput('service', { required: true })
+    const clusterName = getInput('cluster', { required: true })
+    const containerName = getInput('container-name', { required: true })
+    const image = getInput('image', { required: true })
     const includeTags =
-      getInput("include_tags", { required: false }) !== "false"
-        ? ["TAGS"]
-        : undefined;
+      getInput('include_tags', { required: false }) !== 'false'
+        ? ['TAGS']
+        : undefined
 
     // Parse the task definition
     const taskDefPath = external_path_.isAbsolute(taskDefinitionFile)
       ? taskDefinitionFile
-      : external_path_.join(process.env.GITHUB_WORKSPACE, taskDefinitionFile);
+      : external_path_.join(process.env.GITHUB_WORKSPACE, taskDefinitionFile)
     if (!external_fs_.existsSync(taskDefPath)) {
       throw new Error(
         `Task definition file does not exist: ${taskDefinitionFile}`
-      );
+      )
     }
-    const taskDefPatch = JSON.parse(external_fs_.readFileSync(taskDefPath, "utf8"));
+    const taskDefPatch = JSON.parse(external_fs_.readFileSync(taskDefPath, 'utf8'))
 
     // Download the task definition
     const describeResponse = await ecs.send(
@@ -61565,73 +61565,73 @@ async function run() {
         services: [service],
         cluster: clusterName,
       })
-    );
+    )
     if (describeResponse.failures && describeResponse.failures.length > 0) {
-      const failure = describeResponse.failures[0];
-      throw new Error(`${failure.arn} is ${failure.reason}`);
+      const failure = describeResponse.failures[0]
+      throw new Error(`${failure.arn} is ${failure.reason}`)
     }
 
-    const serviceResponse = describeResponse.services[0];
-    if (serviceResponse.status != "ACTIVE") {
-      throw new Error(`Service is ${serviceResponse.status}`);
+    const serviceResponse = describeResponse.services[0]
+    if (serviceResponse.status != 'ACTIVE') {
+      throw new Error(`Service is ${serviceResponse.status}`)
     }
-    const taskDefArn = serviceResponse.taskDefinition;
+    const taskDefArn = serviceResponse.taskDefinition
 
-    core_debug("Downloading the task definition");
-    core_debug("Task definition arn: " + taskDefArn);
-    let describeTaskResponse;
+    core_debug('Downloading the task definition')
+    core_debug('Task definition arn: ' + taskDefArn)
+    let describeTaskResponse
     try {
       describeTaskResponse = await ecs.send(
         new dist_cjs/* DescribeTaskDefinitionCommand */.Zy$({
           taskDefinition: taskDefArn,
           include: includeTags,
         })
-      );
+      )
     } catch (error) {
       setFailed(
-        "Failed to download task definition in ECS: " + error.message
-      );
-      core_debug("Task definition name: " + taskDefArn);
-      throw error;
+        'Failed to download task definition in ECS: ' + error.message
+      )
+      core_debug('Task definition name: ' + taskDefArn)
+      throw error
     }
 
     core_debug(
-      "Downloaded Task definition: " +
+      'Downloaded Task definition: ' +
         JSON.stringify(describeTaskResponse.taskDefinition)
-    );
-    let taskDef = describeTaskResponse.taskDefinition;
-    let tags = [];
+    )
+    let taskDef = describeTaskResponse.taskDefinition
+    let tags = []
     if (includeTags) {
-      tags = describeTaskResponse.tags;
+      tags = describeTaskResponse.tags
     }
     const findContDef = taskDef.containerDefinitions.findIndex(
       (x) => x.name === containerName
-    );
+    )
 
     const newContainerDefinition = mergeContainerDefinition(
       taskDef.containerDefinitions[findContDef],
       { ...taskDefPatch, image }
-    );
-    taskDef.containerDefinitions.splice(findContDef, 1);
-    taskDef.containerDefinitions.push(newContainerDefinition);
+    )
+    taskDef.containerDefinitions.splice(findContDef, 1)
+    taskDef.containerDefinitions.push(newContainerDefinition)
 
-    const ddVersion = getInput("dd-version", { required: false });
+    const ddVersion = getInput('dd-version', { required: false })
     if (ddVersion) {
       const ddAgentIndex = taskDef.containerDefinitions.findIndex(
-        (x) => x.name === "datadog-agent"
-      );
+        (x) => x.name === 'datadog-agent'
+      )
       if (ddAgentIndex !== -1) {
-        const ddAgent = taskDef.containerDefinitions[ddAgentIndex];
+        const ddAgent = taskDef.containerDefinitions[ddAgentIndex]
         if (!ddAgent.environment) {
-          ddAgent.environment = [];
+          ddAgent.environment = []
         }
         const envIndex = ddAgent.environment.findIndex(
-          (e) => e.name === "DD_VERSION"
-        );
+          (e) => e.name === 'DD_VERSION'
+        )
         if (envIndex !== -1) {
-          ddAgent.environment[envIndex].value = ddVersion;
+          ddAgent.environment[envIndex].value = ddVersion
         } else {
-          ddAgent.environment.push({ name: "DD_VERSION", value: ddVersion });
+          ddAgent.environment.push({ name: 'DD_VERSION', value: ddVersion })
         }
       }
     }
@@ -61647,32 +61647,32 @@ async function run() {
       requiresCompatibilities: taskDef.requiresCompatibilities,
       volumes: taskDef.volumes,
       placementConstraints: taskDef.placementConstraints,
-    };
+    }
     if (includeTags) {
-      newTaskDef.tags = tags;
+      newTaskDef.tags = tags
     }
 
-    core_debug("Uploaded Task definition: " + JSON.stringify(newTaskDef));
+    core_debug('Uploaded Task definition: ' + JSON.stringify(newTaskDef))
     // Write out a new task definition file
     const updatedTaskDefFile = tmp.fileSync({
       tmpdir: process.env.RUNNER_TEMP,
-      prefix: "task-definition-",
-      postfix: ".json",
+      prefix: 'task-definition-',
+      postfix: '.json',
       keep: true,
       discardDescriptor: true,
-    });
-    const newtaskDefPatch = JSON.stringify(newTaskDef, null, 2);
-    external_fs_.writeFileSync(updatedTaskDefFile.name, newtaskDefPatch);
-    setOutput("task-definition", updatedTaskDefFile.name);
+    })
+    const newtaskDefPatch = JSON.stringify(newTaskDef, null, 2)
+    external_fs_.writeFileSync(updatedTaskDefFile.name, newtaskDefPatch)
+    setOutput('task-definition', updatedTaskDefFile.name)
   } catch (error) {
-    setFailed(error.message);
+    setFailed(error.message)
   }
 }
 
 /* harmony default export */ const index = (run);
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  run();
+  run()
 }
 
 var __webpack_exports__default = __webpack_exports__.A;

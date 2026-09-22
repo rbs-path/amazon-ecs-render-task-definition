@@ -2,7 +2,11 @@ import path from "path";
 import * as core from "@actions/core";
 import tmp from "tmp";
 import fs from "fs";
-import aws from "aws-sdk";
+import {
+  ECSClient,
+  DescribeServicesCommand,
+  DescribeTaskDefinitionCommand,
+} from "@aws-sdk/client-ecs";
 
 function mergeContainerDefinition(defaults, patch) {
   const { environment: envDefaults } = defaults;
@@ -23,7 +27,7 @@ function mergeContainerDefinition(defaults, patch) {
 
 async function run() {
   try {
-    const ecs = new aws.ECS({
+    const ecs = new ECSClient({
       customUserAgent: "amazon-ecs-render-task-definition-for-github-actions",
     });
 
@@ -52,12 +56,12 @@ async function run() {
     const taskDefPatch = JSON.parse(fs.readFileSync(taskDefPath, "utf8"));
 
     // Download the task definition
-    const describeResponse = await ecs
-      .describeServices({
+    const describeResponse = await ecs.send(
+      new DescribeServicesCommand({
         services: [service],
         cluster: clusterName,
       })
-      .promise();
+    );
     if (describeResponse.failures && describeResponse.failures.length > 0) {
       const failure = describeResponse.failures[0];
       throw new Error(`${failure.arn} is ${failure.reason}`);
@@ -73,12 +77,12 @@ async function run() {
     core.debug("Task definition arn: " + taskDefArn);
     let describeTaskResponse;
     try {
-      describeTaskResponse = await ecs
-        .describeTaskDefinition({
+      describeTaskResponse = await ecs.send(
+        new DescribeTaskDefinitionCommand({
           taskDefinition: taskDefArn,
           include: includeTags,
         })
-        .promise();
+      );
     } catch (error) {
       core.setFailed(
         "Failed to download task definition in ECS: " + error.message

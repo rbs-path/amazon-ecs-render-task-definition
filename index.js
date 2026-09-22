@@ -1,8 +1,12 @@
-const path = require('path')
-const core = require('@actions/core')
-const tmp = require('tmp')
-const fs = require('fs')
-const aws = require('aws-sdk')
+import path from 'path'
+import * as core from '@actions/core'
+import tmp from 'tmp'
+import fs from 'fs'
+import {
+  ECSClient,
+  DescribeServicesCommand,
+  DescribeTaskDefinitionCommand,
+} from '@aws-sdk/client-ecs'
 
 function mergeContainerDefinition(defaults, patch) {
   const { environment: envDefaults } = defaults
@@ -23,7 +27,7 @@ function mergeContainerDefinition(defaults, patch) {
 
 async function run() {
   try {
-    const ecs = new aws.ECS({
+    const ecs = new ECSClient({
       customUserAgent: 'amazon-ecs-render-task-definition-for-github-actions',
     })
 
@@ -49,15 +53,15 @@ async function run() {
         `Task definition file does not exist: ${taskDefinitionFile}`
       )
     }
-    const taskDefPatch = require(taskDefPath)
+    const taskDefPatch = JSON.parse(fs.readFileSync(taskDefPath, 'utf8'))
 
     // Download the task definition
-    const describeResponse = await ecs
-      .describeServices({
+    const describeResponse = await ecs.send(
+      new DescribeServicesCommand({
         services: [service],
         cluster: clusterName,
       })
-      .promise()
+    )
     if (describeResponse.failures && describeResponse.failures.length > 0) {
       const failure = describeResponse.failures[0]
       throw new Error(`${failure.arn} is ${failure.reason}`)
@@ -73,12 +77,12 @@ async function run() {
     core.debug('Task definition arn: ' + taskDefArn)
     let describeTaskResponse
     try {
-      describeTaskResponse = await ecs
-        .describeTaskDefinition({
+      describeTaskResponse = await ecs.send(
+        new DescribeTaskDefinitionCommand({
           taskDefinition: taskDefArn,
           include: includeTags,
         })
-        .promise()
+      )
     } catch (error) {
       core.setFailed(
         'Failed to download task definition in ECS: ' + error.message
@@ -107,7 +111,28 @@ async function run() {
     taskDef.containerDefinitions.splice(findContDef, 1)
     taskDef.containerDefinitions.push(newContainerDefinition)
 
-    var newTaskDef = {
+    const ddVersion = core.getInput('dd-version', { required: false })
+    if (ddVersion) {
+      const ddAgentIndex = taskDef.containerDefinitions.findIndex(
+        (x) => x.name === 'datadog-agent'
+      )
+      if (ddAgentIndex !== -1) {
+        const ddAgent = taskDef.containerDefinitions[ddAgentIndex]
+        if (!ddAgent.environment) {
+          ddAgent.environment = []
+        }
+        const envIndex = ddAgent.environment.findIndex(
+          (e) => e.name === 'DD_VERSION'
+        )
+        if (envIndex !== -1) {
+          ddAgent.environment[envIndex].value = ddVersion
+        } else {
+          ddAgent.environment.push({ name: 'DD_VERSION', value: ddVersion })
+        }
+      }
+    }
+
+    const newTaskDef = {
       containerDefinitions: taskDef.containerDefinitions,
       family: taskDef.family,
       taskRoleArn: taskDef.taskRoleArn,
@@ -125,7 +150,7 @@ async function run() {
 
     core.debug('Uploaded Task definition: ' + JSON.stringify(newTaskDef))
     // Write out a new task definition file
-    var updatedTaskDefFile = tmp.fileSync({
+    const updatedTaskDefFile = tmp.fileSync({
       tmpdir: process.env.RUNNER_TEMP,
       prefix: 'task-definition-',
       postfix: '.json',
@@ -140,9 +165,8 @@ async function run() {
   }
 }
 
-module.exports = run
+export default run
 
-/* istanbul ignore next */
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   run()
 }

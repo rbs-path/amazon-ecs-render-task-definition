@@ -35,6 +35,9 @@ inputs:
   docker-labels:
     description: "Create/Override options inside dockerLabels. Each variable is key=value, you can specify multiple variables with multi-line YAML."
     required: false
+  dd-version:
+    description: "The version to set as DD_VERSION on the datadog-agent container"
+    required: false
 outputs:
   task-definition:
     description: "The path to the rendered task definition file"
